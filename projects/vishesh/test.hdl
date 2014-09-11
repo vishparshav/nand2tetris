@@ -1,0 +1,7 @@
+CHIP test{
+IN i;
+OUT o;
+ 
+ o=true;
+
+}

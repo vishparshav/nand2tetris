@@ -1,0 +1,76 @@
+
+/**
+ * The ALU. Computes one of the following functions:
+ * x+y, x-y, y–x, 0, 1, -1, x, y, -x, -y, !x, !y,
+ * x+1, y+1, x-1, y-1, x&y, x|y on two 16-bit inputs.
+ * Which function to compute is determined by 6 input bits 
+ * denoted zx, nx, zy, ny, f, no.
+ * The computed function's value is called "out".
+ * In addition to computing out, the ALU computes two 
+ * 1-bit outputs called zr and ng:
+ * if out == 0, zr = 1; otherwise zr = 0;
+ * If out < 0, ng = 1; otherwise ng = 0.
+ *  
+ *
+ */
+
+// Implementation: the ALU manipulates the x and y
+// inputs and then operates on the resulting values, 
+// as follows:
+// if (zx  == 1) sets x = 0        // 16-bit constant
+// if (nx  == 1) sets x = ~x       // bitwise "not"
+// if (zy  == 1) sets y = 0        // 16-bit constant
+// if (ny  == 1) sets y = ~y       // bitwise "not"
+// if (f   == 1) sets out = x + y  // integer 2's-complement addition
+// if (f   == 0) sets out = x & y  // bitwise And
+// if (no  == 1) sets out = ~out   // bitwise Not
+// if (out == 0) sets zr = 1
+// if (out < 0)  sets ng = 1
+
+  
+CHIP ALU {
+    IN  
+        x[16], y[16],  // 16-bit inputs        
+        zx, // zero the x input?
+        nx, // negate the x input?
+        zy, // zero the y input?
+        ny, // negate the y input?
+        f,  // compute  out = x + y (if f == 1) or out = x & y (if == 0)
+        no; // negate the out output?
+
+    OUT 
+        out[16], // 16-bit output
+        zr, // 1 if (out == 0), 0 otherwise
+        ng; // 1 if (out < 0),  0 otherwise
+
+    PARTS:
+	//negating the inputs
+		Not16(in=x,out=notx);
+		Not16(in=y,out=noty);
+	//selecting which input for x and y
+		Mux4Way16(a=x,b=false,c=notx,d=true,sel[0]=zx,sel[1]=nx,out=inx);
+		Mux4Way16(a=y,b=false,c=noty,d=true,sel[0]=zy,sel[1]=ny,out=iny);
+	//performing add and "and" function
+		Add16(a=inx,b=iny,out=xaddy);
+		And16(a=inx,b=iny,out=xandy);
+	//selecting one of two functions
+		Mux16(a=xandy,b=xaddy,sel=f,out=resf);
+	//negating the result
+		Not16(in=resf,out=notresf);
+		Mux16(a=resf,b=notresf,sel=no,out=resout);
+	//ng flag setting
+		And16(a=resout,b=true,out[15]=ng);
+	//zr flag setting
+		Or16(a=resout,b=false,out[0..7]=orout1,out[8..15]=orout2);
+		Or8Way(in=orout1,out=zout1);
+		Or8Way(in=orout2,out=zout2);
+		Or(a=zout1,b=zout2,out=zrout);
+		Not(in=zrout,out=zr);
+	//final result out
+		Or16(a=false,b=resout,out=out);
+		
+		
+
+	
+	
+}

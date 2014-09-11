@@ -1,0 +1,55 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/Memory.hdl
+
+/**
+ * This chip implements the complete address space of the 
+ * computer's data memory, including RAM and memory mapped I/O. 
+ * The chip facilitates read and write operations, as follows:
+ *     Read:  out(t) = Memory[address(t)](t)
+ *     Write: If load(t-1) then Memory[address(t-1)](t) = in(t-1)
+ * In words: the chip always outputs the value stored at the memory 
+ * location specified by address. If load == 1, the in value is loaded 
+ * into the memory location specified by address. This value becomes 
+ * available through the out output in the next time step.
+ * Address space rules:
+ * Only the upper 16K+8K+1 words of the Memory chip are used. 
+ * Access to address>0x6000 is invalid. Access to any address in 
+ * the range 0x4000 to 0x5FFF results in accessing the screen memory 
+ * map. Access to address 0x6000 results in accessing the keyboard 
+ * memory map. The behavior in these addresses is described in the 
+ * Screen and Keyboard chip specifications given in the book.
+ */
+
+CHIP Memory {
+    IN in[16], load, address[15];
+    OUT out[16];
+
+    PARTS:
+    And(a=address[14],b=true,out=sel1);
+    And(a=address[13],b=true,out=sel0);
+    And(a=address[12],b=true,out=selx);
+    DMux4Way(in=true,a=ram1,b=ram2,c=ram3,d=ram4,sel[1]=sel1,sel[0]=sel0);
+    
+    
+    Or(a=ram1,b=ram2,out=l1);
+    And(a=load,b=l1,out=ll1);
+    RAM16K(in=in,load=ll1,address=address[0..13],out=out1);
+    And(a=ram3,b=load,out=ll2);
+    Screen(in=in,load=ll2,address=address[0..12],out=out2);
+    Or8Way(in=address[0..7],out=l4xx);
+     Or8Way(in[0..4]=address[8..12],in[5..7]=false,out=l4yx);
+    Or(a=l4xx,b=l4yx,out=l4x);
+    
+  Keyboard(out=out4);
+    
+    
+   
+    
+    
+    Mux4Way16(a=out1,b=out1,c=out2,d=out4,sel[1]=sel1,sel[0]=sel0,out=tout);
+    
+    And(a=ram4,b=l4x,out=wrong);
+    Mux16(a=tout,sel=wrong,out=out);
+}
